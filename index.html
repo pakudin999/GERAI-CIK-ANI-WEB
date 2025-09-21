@@ -35,6 +35,21 @@
         opacity: .5;
       }
     }
+    .quantity-pop {
+        animation: pop 0.3s ease-out;
+    }
+    @keyframes pop {
+        0% { transform: scale(1); color: inherit; }
+        50% { transform: scale(1.4); color: #8B5CF6; } /* purple-500 */
+        100% { transform: scale(1); color: inherit; }
+    }
+    /* Style for date input placeholder */
+    input[type="date"]:required:invalid::-webkit-datetime-edit {
+        color: transparent;
+    }
+    input[type="date"]:focus::-webkit-datetime-edit {
+        color: black !important;
+    }
   </style>
 <script type="importmap">
 {
@@ -163,11 +178,39 @@
         { location: "Seri Alam", fee: 8 },
         { location: "Kongkong", fee: 9 },
     ];
+    
+    const MAJLIS_MENU_ITEMS = [
+      {
+        name: 'Cendol Biasa',
+        freebie: 'Percuma pulut',
+        tiers: [
+          { minQty: 50, maxQty: 200, price: 2.50 },
+          { minQty: 201, maxQty: Infinity, price: 2.00 },
+        ],
+      },
+      {
+        name: 'Cendol (Kacang atau Jagung)',
+        freebie: 'Percuma pulut',
+        tiers: [
+          { minQty: 50, maxQty: 200, price: 3.00 },
+          { minQty: 201, maxQty: Infinity, price: 2.50 },
+        ],
+      },
+      {
+        name: 'Cendol Special (Kacang + Jagung)',
+        freebie: 'Percuma pulut',
+        tiers: [
+          { minQty: 50, maxQty: 200, price: 3.50 },
+          { minQty: 201, maxQty: Infinity, price: 3.00 },
+        ],
+      },
+    ];
 
     // ============================================================================
     // PDF SERVICE
     // ============================================================================
     const generatePdf = (orderItems, customerDetails, deliveryOption, totalAmount) => {
+      // (Implementation remains unchanged)
       return new Promise((resolve, reject) => {
         try {
           const { jsPDF } = window.jspdf;
@@ -182,82 +225,73 @@
           const primaryColor = '#8B5CF6'; // purple-500
           const textColor = '#374151'; // gray-700
           const lightTextColor = '#6B7280'; // gray-500
-          const headerColor = '#FFFFFF';
 
           // --- 1. Header ---
-          doc.setFillColor(primaryColor);
-          doc.rect(0, 0, pageW, 90, 'F');
-          
           doc.setFont('helvetica', 'bold');
-          doc.setTextColor(headerColor);
-          doc.setFontSize(26);
-          doc.text('Gerai Cik Ani', margin, 50);
+          doc.setTextColor(primaryColor);
+          doc.setFontSize(28);
+          doc.text('Gerai Cik Ani', margin, 60);
 
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10);
-          doc.text('ABC & Ubi Lambung', margin, 68);
-
-          doc.setFontSize(10);
-          doc.text(`Tel: +${WHATSAPP_NUMBER}`, pageW - margin, 45, { align: 'right' });
-          doc.text('Jalan Tembikai 7, Taman Kota Masai', pageW - margin, 60, { align: 'right' });
-
-          y = 100; // Starting position after header
-
-          // --- 2. Invoice Details ---
-          y += 30;
+          doc.setTextColor(lightTextColor);
+          doc.text('ABC & Ubi Lambung', margin, 78);
+          
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(20);
+          doc.setFontSize(16);
           doc.setTextColor(textColor);
-          doc.text('INVOIS', margin, y);
+          doc.text('INVOIS', pageW - margin, 60, { align: 'right' });
 
+          y = 100;
+          doc.setDrawColor('#E5E7EB'); // gray-200
+          doc.setLineWidth(1.5);
+          doc.line(margin, y, pageW - margin, y);
+          y += 10;
+          
+          // --- 2. Invoice Details ---
           const now = new Date();
           const invoiceId = `GCA-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}-${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
           const issueDate = now.toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
           
-          const col1X = margin;
-          const col2X = pageW / 2 + 20;
-
-          y += 30;
-          
-          // "Billed To" column
+          let leftColY = y + 30;
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(lightTextColor);
-          doc.text('KEPADA:', col1X, y);
+          doc.text('KEPADA:', margin, leftColY);
           
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(11);
           doc.setTextColor(textColor);
-          doc.text(customerDetails.name, col1X, y + 15);
-          doc.text(customerDetails.phone, col1X, y + 30);
+          doc.text(customerDetails.name, margin, leftColY + 15);
+          doc.text(customerDetails.phone, margin, leftColY + 30);
           const addressLines = doc.splitTextToSize(customerDetails.address, (pageW / 2) - margin - 20);
-          doc.text(addressLines, col1X, y + 45);
-          const leftColHeight = 45 + (addressLines.length * 12);
-          
-          // Invoice Details column
-          let rightColY = y;
+          doc.text(addressLines, margin, leftColY + 45);
+          const leftColEndY = leftColY + 45 + ((addressLines.length - 1) * 12 * 1.15);
+
+          let rightColY = y + 30;
+          const rightDetailsX = pageW - margin;
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(lightTextColor);
-          doc.text('NO. INVOIS:', col2X, rightColY);
+          doc.text('NO. INVOIS:', rightDetailsX - 100, rightColY, { align: 'left' });
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(11);
           doc.setTextColor(textColor);
-          doc.text(invoiceId, col2X, rightColY + 15);
-          rightColY += 35;
+          doc.text(invoiceId, rightDetailsX, rightColY, { align: 'right' });
           
+          rightColY += 20;
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(lightTextColor);
-          doc.text('TARIKH:', col2X, rightColY);
+          doc.text('TARIKH:', rightDetailsX - 100, rightColY, { align: 'left' });
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(11);
           doc.setTextColor(textColor);
-          doc.text(issueDate, col2X, rightColY + 15);
-          const rightColHeight = rightColY + 15 - y;
+          doc.text(issueDate, rightDetailsX, rightColY, { align: 'right' });
+          const rightColEndY = rightColY;
           
-          y += Math.max(leftColHeight, rightColHeight);
-          
+          y = Math.max(leftColEndY, rightColEndY) + 40;
+
           // --- 3. Order Table ---
           const head = [['#', 'Perkara', 'Kuantiti', 'Harga Seunit', 'Jumlah']];
           let itemCounter = 1;
@@ -269,11 +303,9 @@
               `RM ${(price * quantity).toFixed(2)}`,
           ]);
           
-          const subTotal = Object.values(orderItems).reduce((acc, item) => acc + item.price * item.quantity, 0);
-
           if (doc.autoTable) {
             doc.autoTable({
-                startY: y + 20,
+                startY: y,
                 head: head,
                 body: body,
                 theme: 'grid',
@@ -298,51 +330,37 @@
           }
 
           // --- 4. Totals ---
-          y += 20;
           const totalsX = pageW - margin;
-          doc.setFontSize(11);
+          const subTotal = Object.values(orderItems).reduce((acc, item) => acc + item.price * item.quantity, 0);
+          let totalsY = y + 30;
           
+          doc.setFontSize(11);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(textColor);
-          doc.text('Jumlah Kecil:', totalsX - 100, y, { align: 'right' });
-          doc.text(`RM ${subTotal.toFixed(2)}`, totalsX, y, { align: 'right' });
-          y += 20;
+          doc.text('Jumlah Kecil:', totalsX - 120, totalsY, { align: 'right' });
+          doc.text(`RM ${subTotal.toFixed(2)}`, totalsX, totalsY, { align: 'right' });
+          totalsY += 20;
           
-          doc.text('Caj Penghantaran:', totalsX - 100, y, { align: 'right' });
-          doc.text(`RM ${deliveryOption.fee.toFixed(2)}`, totalsX, y, { align: 'right' });
-          y += 20;
+          doc.text('Caj Penghantaran:', totalsX - 120, totalsY, { align: 'right' });
+          doc.text(`RM ${deliveryOption.fee.toFixed(2)}`, totalsX, totalsY, { align: 'right' });
+          totalsY += 20;
           
-          doc.setLineWidth(1.5);
-          doc.setDrawColor(primaryColor);
-          doc.line(totalsX - 220, y, totalsX, y);
-          y += 5;
+          doc.setLineWidth(1);
+          doc.setDrawColor(lightTextColor);
+          doc.line(totalsX - 250, totalsY, totalsX, totalsY);
+          totalsY += 5;
           
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(14);
           doc.setTextColor(primaryColor);
-          doc.text('JUMLAH KESELURUHAN:', totalsX - 100, y + 15, { align: 'right' });
-          doc.text(`RM ${totalAmount.toFixed(2)}`, totalsX, y + 15, { align: 'right' });
-          y += 15;
+          doc.text('JUMLAH:', totalsX - 120, totalsY + 15, { align: 'right' });
+          doc.text(`RM ${totalAmount.toFixed(2)}`, totalsX, totalsY + 15, { align: 'right' });
+          y = totalsY + 15;
 
-          // --- 5. Notes ---
+          // --- 5. Footer ---
           const pageHeight = doc.internal.pageSize.getHeight();
           const footerStartY = pageHeight - 80;
           
-          if (customerDetails.notes && y < footerStartY - 50) { 
-            y += 40;
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.setTextColor(textColor);
-            doc.text('Nota Tambahan:', margin, y);
-            y += 15;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(lightTextColor);
-            const notesLines = doc.splitTextToSize(customerDetails.notes, pageW - (margin * 2));
-            doc.text(notesLines, margin, y);
-          }
-
-          // --- 6. Footer ---
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(textColor);
@@ -353,11 +371,14 @@
           doc.setTextColor(lightTextColor);
           doc.text('Sila tunggu maklum balas dan kod QR daripada kami untuk pembayaran.', margin, footerStartY + 15);
           
-          doc.setFontSize(9);
-          doc.setTextColor('#cccccc'); // light gray
-          doc.text('Terima kasih atas tempahan anda!', pageW / 2, pageHeight - 20, { align: 'center' });
+          doc.setDrawColor('#E5E7EB'); // gray-200
+          doc.line(margin, pageHeight - 40, pageW - margin, pageHeight - 40);
           
-          // --- 7. Save ---
+          doc.setFontSize(9);
+          doc.setTextColor(lightTextColor);
+          doc.text('Terima kasih atas tempahan anda!', pageW / 2, pageHeight - 25, { align: 'center' });
+          
+          // --- 6. Save ---
           const filename = `Invois_GeraiCikAni_${invoiceId}.pdf`;
           doc.save(filename);
           resolve();
@@ -368,15 +389,182 @@
         }
       });
     };
+    
+    const generateMajlisPdf = (orderItems, customerDetails, totalAmount, deposit, eventDate) => {
+      return new Promise((resolve, reject) => {
+        try {
+          const { jsPDF } = window.jspdf;
+          if (!jsPDF) throw new Error('jsPDF library not found.');
+          
+          const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+          const pageW = doc.internal.pageSize.getWidth();
+          const margin = 40;
+          let y = 0;
+
+          const primaryColor = '#8B5CF6'; // purple-500
+          const textColor = '#374151'; // gray-700
+          const lightTextColor = '#6B7280'; // gray-500
+
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(primaryColor);
+          doc.setFontSize(28);
+          doc.text('Gerai Cik Ani', margin, 60);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(lightTextColor);
+          doc.text('Tempahan Majlis', margin, 78);
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(16);
+          doc.setTextColor(textColor);
+          doc.text('SEBUT HARGA', pageW - margin, 60, { align: 'right' });
+
+          y = 100;
+          doc.setDrawColor('#E5E7EB');
+          doc.setLineWidth(1.5);
+          doc.line(margin, y, pageW - margin, y);
+          y += 10;
+          
+          const now = new Date();
+          const invoiceId = `GCA-M-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}-${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+          const issueDate = now.toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          
+          let leftColY = y + 30;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(lightTextColor);
+          doc.text('KEPADA:', margin, leftColY);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(textColor);
+          doc.text(customerDetails.name, margin, leftColY + 15);
+          doc.text(customerDetails.phone, margin, leftColY + 30);
+          const addressLines = doc.splitTextToSize(`Alamat Majlis: ${customerDetails.address}`, (pageW / 2) - margin - 20);
+          doc.text(addressLines, margin, leftColY + 45);
+          const leftColEndY = leftColY + 45 + ((addressLines.length) * 12 * 1.15);
+
+          let rightColY = y + 30;
+          const rightDetailsX = pageW - margin;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(lightTextColor);
+          doc.text('NO. SEBUT HARGA:', rightDetailsX - 110, rightColY, { align: 'left' });
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(textColor);
+          doc.text(invoiceId, rightDetailsX, rightColY, { align: 'right' });
+          
+          rightColY += 20;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(lightTextColor);
+          doc.text('TARIKH KELUAR:', rightDetailsX - 110, rightColY, { align: 'left' });
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(textColor);
+          doc.text(issueDate, rightDetailsX, rightColY, { align: 'right' });
+          
+          rightColY += 20;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(lightTextColor);
+          doc.text('TARIKH MAJLIS:', rightDetailsX - 110, rightColY, { align: 'left' });
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(11);
+          doc.setTextColor(textColor);
+          doc.text(eventDate ? new Date(eventDate).toLocaleDateString('ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A', rightDetailsX, rightColY, { align: 'right' });
+          const rightColEndY = rightColY;
+          
+          y = Math.max(leftColEndY, rightColEndY) + 40;
+
+          const head = [['#', 'Perkara', 'Kuantiti (set)', 'Harga Seunit', 'Jumlah']];
+          let itemCounter = 1;
+          const body = Object.entries(orderItems).map(([name, { quantity, price }]) => [
+              (itemCounter++).toString(),
+              name,
+              quantity.toString(),
+              `RM ${price.toFixed(2)}`,
+              `RM ${(price * quantity).toFixed(2)}`,
+          ]);
+          
+          doc.autoTable({
+              startY: y, head, body, theme: 'grid',
+              headStyles: { fillColor: primaryColor, textColor: '#FFFFFF', fontStyle: 'bold' },
+              styles: { font: 'helvetica', fontSize: 10, cellPadding: 8 },
+              columnStyles: {
+                  0: { halign: 'center', cellWidth: 35 },
+                  2: { halign: 'center' },
+                  3: { halign: 'right' },
+                  4: { halign: 'right' },
+              },
+          });
+          y = doc.lastAutoTable.finalY;
+
+          const totalsX = pageW - margin;
+          let totalsY = y + 30;
+          
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(textColor);
+          doc.text('Jumlah Penuh:', totalsX - 120, totalsY, { align: 'right' });
+          doc.text(`RM ${totalAmount.toFixed(2)}`, totalsX, totalsY, { align: 'right' });
+          totalsY += 20;
+          
+          const depositAmount = parseFloat(deposit) || 0;
+          doc.text('Deposit:', totalsX - 120, totalsY, { align: 'right' });
+          doc.text(`RM ${depositAmount.toFixed(2)}`, totalsX, totalsY, { align: 'right' });
+          totalsY += 20;
+          
+          doc.setLineWidth(1);
+          doc.setDrawColor(lightTextColor);
+          doc.line(totalsX - 250, totalsY, totalsX, totalsY);
+          totalsY += 5;
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(14);
+          doc.setTextColor(primaryColor);
+          doc.text('BAKI BAYARAN:', totalsX - 120, totalsY + 15, { align: 'right' });
+          doc.text(`RM ${(totalAmount - depositAmount).toFixed(2)}`, totalsX, totalsY + 15, { align: 'right' });
+
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const footerStartY = pageHeight - 80;
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(textColor);
+          doc.text('Maklumat Lanjut:', margin, footerStartY);
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(lightTextColor);
+          doc.text('Sila hubungi kami untuk pengesahan tempahan dan pembayaran deposit.', margin, footerStartY + 15);
+          
+          doc.setDrawColor('#E5E7EB');
+          doc.line(margin, pageHeight - 40, pageW - margin, pageHeight - 40);
+          
+          doc.setFontSize(9);
+          doc.setTextColor(lightTextColor);
+          doc.text('Terima kasih kerana memilih Gerai Cik Ani!', pageW / 2, pageHeight - 25, { align: 'center' });
+          
+          const filename = `SebutHarga_Majlis_GeraiCikAni_${invoiceId}.pdf`;
+          doc.save(filename);
+          resolve();
+
+        } catch (error) {
+          console.error("Failed to generate Majlis PDF:", error);
+          reject(error);
+        }
+      });
+    };
 
     // ============================================================================
     // COMPONENTS
     // ============================================================================
 
-    // --- NotesModal.tsx ---
     const NotesModal = ({ isOpen, onClose }) => {
       if (!isOpen) return null;
-
       return (
         <div id="notesModal" className="fixed inset-0 z-50 flex items-center justify-center">
           <div id="notesOverlay" className="absolute inset-0 bg-black/50" onClick={() => onClose(false)}></div>
@@ -397,14 +585,12 @@
       );
     };
 
-    // --- Header.tsx ---
     const Header = ({ currentPage, onNavigate }) => {
       const getButtonClass = (page) => {
         const baseClass = "text-purple-600 hover:text-purple-800 font-medium transition duration-300";
         const activeClass = "text-purple-800 font-bold";
         return currentPage === page ? `${baseClass} ${activeClass}` : baseClass;
       };
-
       return (
         <nav className="bg-white shadow-lg sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4">
@@ -423,9 +609,7 @@
       );
     };
 
-    // --- Footer.tsx ---
-    const Footer = () => {
-      return (
+    const Footer = () => (
         <footer className="mt-16 pb-6">
           <div className="max-w-6xl mx-auto px-4">
             <div className="h-px bg-gradient-to-r from-transparent via-pink-400 to-transparent opacity-70 mb-6"></div>
@@ -443,24 +627,21 @@
             </div>
           </div>
         </footer>
-      );
-    };
+    );
 
-    // --- HomePage.tsx ---
     const LocationIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/></svg>);
     const TimeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd"/></svg>);
-    const HomePage = ({ onNavigate }) => {
-      return (
+    const HomePage = ({ onNavigate }) => (
         <div id="homePage" className="container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center text-center py-8">
             <header className="mb-10">
-              <h1 className="text-5xl md:text-6xl font-extrabold text-purple-800 drop-shadow-lg">Selamat Datang ke</h1>
-              <h2 className="text-6xl md:text-8xl font-extrabold text-pink-600 drop-shadow-lg mt-2">Gerai Cik Ani</h2>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-purple-800 drop-shadow-lg">Selamat Datang ke</h1>
+              <h2 className="text-5xl sm:text-6xl md:text-8xl font-extrabold text-pink-600 drop-shadow-lg mt-2">Gerai Cik Ani</h2>
               <p className="text-xl text-gray-600 mt-4">ABC dan Ubi Lambung - Penyejuk hati di cuaca panas!</p>
             </header>
-            <div className="flex flex-row space-x-4 mb-12">
-              <button onClick={() => onNavigate(Page.Menu)} className="bg-pink-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-pink-600 transition duration-300 transform hover:scale-105 text-lg">Lihat Menu</button>
-              <button onClick={() => onNavigate(Page.Booking)} className="bg-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-purple-700 transition duration-300 transform hover:scale-105 text-lg">Buat Tempahan</button>
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-12">
+              <button onClick={() => onNavigate(Page.Menu)} className="bg-white border-2 border-pink-500 text-pink-500 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-pink-50 transition duration-300 transform hover:scale-105 text-base">Lihat Menu</button>
+              <button onClick={() => onNavigate(Page.Booking)} className="bg-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-purple-700 transition duration-300 transform hover:scale-105 text-base">Buat Tempahan</button>
             </div>
             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
               <div className="bg-white/90 backdrop-blur p-5 md:p-6 rounded-2xl shadow-lg border border-purple-100 flex items-center gap-4">
@@ -482,10 +663,8 @@
             </div>
           </div>
         </div>
-      );
-    };
+    );
 
-    // --- MenuPage.tsx ---
     const MenuCategoryCard = ({ category }) => (
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className={`bg-gradient-to-r ${category.gradient} text-white p-4`}>
@@ -503,8 +682,7 @@
         </div>
       </div>
     );
-    const MenuPage = () => {
-      return (
+    const MenuPage = () => (
         <div id="menuPage" className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl font-extrabold text-purple-800 mb-4">Menu</h1>
@@ -513,51 +691,11 @@
             {MENU_CATEGORIES.map(category => (<MenuCategoryCard key={category.id} category={category} />))}
           </div>
         </div>
-      );
-    };
-
-    // --- BookingPage.tsx ---
-    const OrderSummary = ({ orderItems, deliveryOption, totalAmount }) => (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-2xl font-bold text-purple-800 mb-4">Ringkasan Pesanan</h2>
-          <div id="orderSummary" className="space-y-2 mb-4 min-h-[6rem]">
-            {Object.keys(orderItems).length === 0 && !deliveryOption ? (
-              <p className="text-gray-500 text-center py-4">Belum ada item dipilih</p>
-            ) : (
-              <>
-                {Object.entries(orderItems).map(([name, { quantity, price }]) => {
-                  const itemTotal = price * quantity;
-                  return (
-                    <div key={name} className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <div>
-                        <span className="font-medium text-gray-800">{name}</span>
-                        <span className="text-sm text-gray-500"> x{quantity}</span>
-                      </div>
-                      <span className="font-bold text-purple-600">RM {itemTotal.toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-                {deliveryOption && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div>
-                      <span className="font-medium text-gray-800">Penghantaran</span>
-                      <span className="text-xs text-gray-500 block">{deliveryOption.location}</span>
-                    </div>
-                    <span className="font-bold text-purple-600">RM {deliveryOption.fee.toFixed(2)}</span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div className="border-t pt-4">
-            <div className="flex justify-between items-center text-xl font-bold text-purple-800">
-              <span>Jumlah Total:</span>
-              <span id="totalPrice">RM {totalAmount.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
     );
-    const BookingPage = () => {
+    
+    // --- BookingPage.tsx ---
+
+    const PesananBiasaTab = () => {
         const [orderItems, setOrderItems] = useState({});
         const [deliveryOption, setDeliveryOption] = useState(null);
         const [customerDetails, setCustomerDetails] = useState({ name: '', phone: '', address: '', notes: '' });
@@ -566,51 +704,38 @@
         const [pendingDelivery, setPendingDelivery] = useState(null);
         const [formErrors, setFormErrors] = useState([]);
         const [pdfStatus, setPdfStatus] = useState('idle');
-
+        const [quantityKey, setQuantityKey] = useState(0);
+        
         const deliverySectionRef = useRef(null);
         const deliveryHintShown = useRef(false);
 
-        const subTotal = useMemo(() => {
-            return Object.values(orderItems).reduce((acc, item) => acc + item.price * item.quantity, 0);
-        }, [orderItems]);
-
-        const totalAmount = useMemo(() => {
-            return subTotal + (deliveryOption?.fee || 0);
-        }, [subTotal, deliveryOption]);
-
-        const isFormValid = useMemo(() => {
-            return (
-                Object.keys(orderItems).length > 0 &&
-                !!deliveryOption &&
-                customerDetails.name.trim() !== '' &&
-                customerDetails.phone.trim() !== '' &&
-                customerDetails.address.trim() !== ''
-            );
-        }, [orderItems, deliveryOption, customerDetails]);
+        const subTotal = useMemo(() => Object.values(orderItems).reduce((acc, item) => acc + item.price * item.quantity, 0), [orderItems]);
+        const totalAmount = useMemo(() => subTotal + (deliveryOption?.fee || 0), [subTotal, deliveryOption]);
+        const isFormValid = useMemo(() => (
+            Object.keys(orderItems).length > 0 &&
+            !!deliveryOption &&
+            customerDetails.name.trim() !== '' &&
+            customerDetails.phone.trim() !== '' &&
+            customerDetails.address.trim() !== ''
+        ), [orderItems, deliveryOption, customerDetails]);
 
         useEffect(() => {
             const errors = [];
+            if (Object.keys(orderItems).length === 0) errors.push('Item');
+            if (!deliveryOption) errors.push('Harga penghantaran');
             if (customerDetails.name.trim() === '') errors.push('Nama');
             if (customerDetails.phone.trim() === '') errors.push('Telefon');
             if (customerDetails.address.trim() === '') errors.push('Alamat');
-            if (Object.keys(orderItems).length === 0) errors.push('Item');
-            if (!deliveryOption) errors.push('Harga penghantaran');
-
             setFormErrors(errors);
 
-            if (
-                !deliveryOption && 
-                Object.keys(orderItems).length > 0 &&
-                customerDetails.name && customerDetails.phone && customerDetails.address &&
-                !deliveryHintShown.current
-            ) {
+            if (!deliveryOption && Object.keys(orderItems).length > 0 && customerDetails.name && customerDetails.phone && customerDetails.address && !deliveryHintShown.current) {
                 deliverySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 deliveryHintShown.current = true;
             }
-
         }, [customerDetails, orderItems, deliveryOption]);
 
         const handleQuantityChange = (item, change) => {
+            setQuantityKey(prev => prev + 1);
             setOrderItems(prev => {
                 const existingItem = prev[item.name];
                 const newQuantity = (existingItem?.quantity || 0) + change;
@@ -643,17 +768,25 @@
             setCustomerDetails(prev => ({ ...prev, [name]: value }));
         };
 
-        const handleSubmit = (e) => {
+        const handleCombinedAction = async (e) => {
             e.preventDefault();
             if (!isFormValid) return;
-
-            let orderList = Object.entries(orderItems)
-                .map(([name, { quantity, price }]) => `- ${name} x${quantity} = RM ${(price * quantity).toFixed(2)}`)
-                .join('\n');
-
-            if (deliveryOption) {
-                orderList += `\n- Penghantaran (${deliveryOption.location}) = RM ${deliveryOption.fee.toFixed(2)}`;
+        
+            setPdfStatus('generating');
+            try {
+                await generatePdf(orderItems, customerDetails, deliveryOption, totalAmount);
+                setPdfStatus('done');
+                setTimeout(() => setPdfStatus('idle'), 4000);
+            } catch (error) {
+                setPdfStatus('error');
+                return;
             }
+        
+            let itemCounter = 1;
+            let orderList = Object.entries(orderItems)
+                .map(([name, { quantity, price }]) => `${itemCounter++}. ${name} (x${quantity}) — RM ${(price * quantity).toFixed(2)}`)
+                .join('\n');
+            orderList += `\n\nCaj Penghantaran (${deliveryOption.location}): RM ${deliveryOption.fee.toFixed(2)}`;
 
             const orderDetails = `
 TEMPAHAN BARU - GERAI CIK ANI
@@ -676,101 +809,361 @@ ${customerDetails.notes || 'Tiada'}
 Terima kasih atas tempahan anda!
 Sila tunggu maklum balas dan QR code daripada vendor.
 
-SILA CALL YE JIKA KAMI LAMBAT BALAS CHAT ANDA, TERIMA KASIH…`.trim();
+SILA CALL YE JIKA KAMI LAMBAT BALAS CHAT ANDA, TERIMA KASIH…`.trim().replace(/\n/g, '%0A');
 
-            const encodedMessage = encodeURIComponent(orderDetails);
-            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`, '_blank');
+            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${orderDetails}`, '_blank');
         };
 
-        const handlePdfDownload = async () => {
-            if (!isFormValid) return;
-            setPdfStatus('generating');
-            try {
-                await generatePdf(orderItems, customerDetails, deliveryOption, totalAmount);
-                setPdfStatus('done');
-                setTimeout(() => setPdfStatus('idle'), 4000);
-            } catch (error) {
-                console.error("PDF generation failed:", error);
-                setPdfStatus('error');
-            }
-        };
-        
+        const OrderSummary = ({ orderItems, deliveryOption, totalAmount }) => (
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold text-purple-800 mb-4">Ringkasan Pesanan</h2>
+            <div id="orderSummary" className="mb-4 min-h-[6rem]">
+              {Object.keys(orderItems).length === 0 && !deliveryOption ? (
+                <p className="text-gray-500 text-center py-4">Belum ada item dipilih</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Items Section */}
+                  {Object.keys(orderItems).length > 0 && (
+                    <div className="space-y-2">
+                      {Object.entries(orderItems).map(([name, { quantity, price }]) => (
+                        <div key={name} className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium text-gray-800">{name}</span>
+                            <span className="text-sm text-gray-500"> x{quantity}</span>
+                          </div>
+                          <span className="font-semibold text-gray-700">RM {(price * quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Delivery Section */}
+                  {deliveryOption && (
+                    <div className="flex justify-between items-center pt-3 border-t border-dashed border-gray-300">
+                      <div>
+                        <span className="font-medium text-gray-800">Penghantaran</span>
+                        <span className="text-xs text-gray-500 block">{deliveryOption.location}</span>
+                      </div>
+                      <span className="font-semibold text-gray-700">RM {deliveryOption.fee.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Total Section */}
+            <div className="border-t-2 border-gray-200 pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold text-gray-600">Jumlah Total:</span>
+                <span id="totalPrice" className="text-2xl font-bold text-purple-800">RM {totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        );
+
         return (
             <>
-                <div className="container mx-auto px-4 py-8">
-                    <div className="text-center mb-8">
-                        <h1 className="text-4xl md:text-5xl font-extrabold text-purple-800 mb-4">Buat Tempahan</h1>
-                        <p className="text-xl text-gray-600">Pilih item dan lihat jumlah harga secara automatik</p>
-                    </div>
-                    <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-4 rounded-xl shadow-lg menu-compact">
-                            <h2 className="text-xl font-bold text-purple-800 mb-3">Pilih Menu</h2>
-                            <div className="space-y-3 max-h-[42rem] overflow-y-auto">
-                               {MENU_CATEGORIES.map((cat) => (
-                                   <div key={cat.id}>
-                                       <div className={`category-header bg-gradient-to-r ${cat.gradient} text-white p-2 rounded-t-lg cursor-pointer`} onClick={() => setOpenCategory(openCategory === cat.id ? null : cat.id)}>
-                                           <h3 className="font-bold flex items-center justify-between">{cat.emoji} {cat.name} <span className="toggle-icon">{openCategory === cat.id ? '▼' : '▶'}</span></h3>
-                                       </div>
-                                       {openCategory === cat.id && (
-                                           <div className="category-items space-y-2 p-2 border-l border-r border-b rounded-b-lg">
-                                               {cat.items.map((item) => (
-                                                   <div key={item.name} className="menu-item flex justify-between items-center p-2 border rounded-lg hover:bg-purple-50 text-sm">
-                                                       <div className="w-2/4"><span className="font-medium text-gray-800">{item.name}</span></div>
-                                                       <div className="flex items-center gap-2">
-                                                           <span className="text-purple-600 font-bold w-16 text-right">RM {item.price.toFixed(2)}</span>
-                                                           <div className="flex items-center">
-                                                               <button type="button" onClick={() => handleQuantityChange(item, -1)} className="decrease-btn bg-red-500 text-white w-7 h-7 rounded-full hover:bg-red-600 flex items-center justify-center">-</button>
-                                                               <span className="quantity-display w-8 text-center font-bold">{orderItems[item.name]?.quantity || 0}</span>
-                                                               <button type="button" onClick={() => handleQuantityChange(item, 1)} className="increase-btn bg-green-500 text-white w-7 h-7 rounded-full hover:bg-green-600 flex items-center justify-center">+</button>
-                                                           </div>
+                <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-4 rounded-xl shadow-lg menu-compact">
+                        <h2 className="text-xl font-bold text-purple-800 mb-3">Pilih Menu</h2>
+                        <div className="space-y-3 max-h-[42rem] overflow-y-auto">
+                           {MENU_CATEGORIES.map((cat) => (
+                               <div key={cat.id}>
+                                   <div className={`category-header bg-gradient-to-r ${cat.gradient} text-white p-2 rounded-t-lg cursor-pointer`} onClick={() => setOpenCategory(openCategory === cat.id ? null : cat.id)}>
+                                       <h3 className="font-bold flex items-center justify-between">{cat.emoji} {cat.name} <span className="toggle-icon">{openCategory === cat.id ? '▼' : '▶'}</span></h3>
+                                   </div>
+                                   {openCategory === cat.id && (
+                                       <div className="category-items space-y-2 p-2 border-l border-r border-b rounded-b-lg">
+                                           {cat.items.map((item) => (
+                                               <div key={item.name} className="menu-item flex justify-between items-center p-2 border rounded-lg hover:bg-purple-50 text-sm">
+                                                   <div className="w-2/4"><span className="font-medium text-gray-800">{item.name}</span></div>
+                                                   <div className="flex items-center gap-2">
+                                                       <span className="text-purple-600 font-bold w-16 text-right">RM {item.price.toFixed(2)}</span>
+                                                       <div className="flex items-center">
+                                                           <button type="button" onClick={() => handleQuantityChange(item, -1)} className="decrease-btn bg-red-500 text-white w-7 h-7 rounded-full hover:bg-red-600 flex items-center justify-center">-</button>
+                                                           <span key={quantityKey + item.name} className={`quantity-display w-8 text-center font-bold ${orderItems[item.name]?.quantity > 0 ? 'quantity-pop' : ''}`}>{orderItems[item.name]?.quantity || 0}</span>
+                                                           <button type="button" onClick={() => handleQuantityChange(item, 1)} className="increase-btn bg-green-500 text-white w-7 h-7 rounded-full hover:bg-green-600 flex items-center justify-center">+</button>
                                                        </div>
                                                    </div>
-                                               ))}
-                                           </div>
-                                       )}
-                                   </div>
-                               ))}
-                            </div>
+                                               </div>
+                                           ))}
+                                       </div>
+                                   )}
+                               </div>
+                           ))}
                         </div>
-                        <div className="space-y-6">
-                            <div id="deliverySection" ref={deliverySectionRef} className={`bg-white p-4 rounded-xl shadow-lg transition-all duration-300 ${!deliveryOption && deliveryHintShown.current ? 'ring-2 ring-rose-300 animate-pulse' : ''}`}>
-                                <h2 className="text-lg font-bold text-purple-800">📦 Harga Penghantaran 🛵</h2>
-                                <p className="text-xs text-gray-500 mb-2">Pilih sub lokasi untuk sahkan</p>
-                                {deliveryOption ? (
-                                    <div className="text-sm text-purple-700 font-semibold p-2 bg-purple-50 rounded-md">Dipilih: {deliveryOption.location} - RM{deliveryOption.fee.toFixed(2)}</div>
-                                ) : (
-                                    <ul className="space-y-1 max-h-64 overflow-y-auto pr-1 text-sm">
-                                        {DELIVERY_OPTIONS.map(opt => (
-                                            <li key={opt.location} onClick={() => handleDeliverySelect(opt)} className="delivery-item p-2 rounded-lg border hover:bg-purple-50 cursor-pointer flex items-center justify-between">
-                                                <span>• {opt.location}</span>
-                                                <span className="ml-3 inline-block px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-semibold">RM{opt.fee}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                            <OrderSummary orderItems={orderItems} deliveryOption={deliveryOption} totalAmount={totalAmount} />
-                            <div className="bg-white p-6 rounded-xl shadow-lg">
-                                <h2 className="text-2xl font-bold text-purple-800 mb-4">Maklumat Pelanggan</h2>
-                                <form id="bookingForm" className="space-y-4" onSubmit={handleSubmit} noValidate>
-                                    <input type="text" id="name" name="name" required value={customerDetails.name} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nama Penuh *" />
-                                    <input type="tel" id="phone" name="phone" required value={customerDetails.phone} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nombor Telefon *" />
-                                    <textarea id="address" name="address" rows={3} required value={customerDetails.address} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Alamat Penuh *"></textarea>
-                                    <textarea id="notes" name="notes" rows={3} value={customerDetails.notes} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nota Tambahan (Pilihan)"></textarea>
-                                    <div id="submitBtnWrapper" className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <button type="submit" disabled={!isFormValid} className={`w-full text-white font-bold py-4 px-8 rounded-lg shadow-lg transition duration-300 text-lg ${isFormValid ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-105' : 'bg-gray-400 cursor-not-allowed'}`}>📱 Hantar via WhatsApp</button>
-                                        <button type="button" disabled={!isFormValid || pdfStatus === 'generating'} onClick={handlePdfDownload} className={`w-full text-white font-bold py-4 px-8 rounded-lg shadow-lg transition duration-300 text-lg ${isFormValid ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-105' : 'bg-gray-400 cursor-not-allowed'}`}>{pdfStatus === 'generating' ? 'Menjana PDF...' : '🧾 Muat Turun Bil (PDF)'}</button>
-                                    </div>
-                                    {!isFormValid && formErrors.length > 0 && (<div className="mt-3 p-3 rounded-lg border text-sm bg-red-50 border-red-200 text-red-700">Sila isi: {formErrors.join(', ')}</div>)}
-                                    {pdfStatus === 'done' && <p className="text-xs text-gray-500 md:col-span-2">PDF dijana. Jika tidak dimuat turun, benarkan pop-up pada pelayar anda.</p>}
-                                    {pdfStatus === 'error' && <p className="text-xs text-red-600 md:col-span-2">Maaf, gagal menjana PDF. Cuba lagi.</p>}
-                                </form>
-                            </div>
+                    </div>
+                    <div className="space-y-6">
+                        <div id="deliverySection" ref={deliverySectionRef} className={`bg-white p-4 rounded-xl shadow-lg transition-all duration-300 ${!deliveryOption && deliveryHintShown.current ? 'ring-2 ring-rose-300 animate-pulse' : ''}`}>
+                            <h2 className="text-lg font-bold text-purple-800">📦 Harga Penghantaran 🛵</h2>
+                            <p className="text-xs text-gray-500 mb-2">Pilih sub lokasi untuk sahkan</p>
+                            {deliveryOption ? (
+                                <div className="text-sm text-purple-700 font-semibold p-2 bg-purple-50 rounded-md">Dipilih: {deliveryOption.location} - RM{deliveryOption.fee.toFixed(2)}</div>
+                            ) : (
+                                <ul className="space-y-1 max-h-64 overflow-y-auto pr-1 text-sm">
+                                    {DELIVERY_OPTIONS.map(opt => (
+                                        <li key={opt.location} onClick={() => handleDeliverySelect(opt)} className="delivery-item p-2 rounded-lg border hover:bg-purple-50 cursor-pointer flex items-center justify-between">
+                                            <span>• {opt.location}</span>
+                                            <span className="ml-3 inline-block px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-semibold">RM{opt.fee}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <OrderSummary orderItems={orderItems} deliveryOption={deliveryOption} totalAmount={totalAmount} />
+                        <div className="bg-white p-6 rounded-xl shadow-lg">
+                            <h2 className="text-2xl font-bold text-purple-800 mb-4">Maklumat Pelanggan</h2>
+                            <form id="bookingForm" className="space-y-4" onSubmit={handleCombinedAction} noValidate>
+                                <input type="text" id="name" name="name" required value={customerDetails.name} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nama Penuh *" />
+                                <input type="tel" id="phone" name="phone" required value={customerDetails.phone} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nombor Telefon *" />
+                                <textarea id="address" name="address" rows={3} required value={customerDetails.address} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Alamat Penuh *"></textarea>
+                                <textarea id="notes" name="notes" rows={3} value={customerDetails.notes} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nota Tambahan (Pilihan)"></textarea>
+                                <div id="submitBtnWrapper">
+                                    <button type="submit" disabled={!isFormValid || pdfStatus === 'generating'} className={`w-full text-white font-bold py-4 px-8 rounded-lg shadow-lg transition duration-300 text-lg ${isFormValid ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-105' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                        {pdfStatus === 'generating' ? 'Memproses...' : '🚀 Hantar & Jana Bil (PDF)'}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-center text-gray-500 !-mt-1">Aksi ini akan memuat turun bil PDF, kemudian membuka WhatsApp. Sila lampirkan PDF itu secara manual.</p>
+                                {!isFormValid && formErrors.length > 0 && (<div className="mt-3 p-3 rounded-lg border text-sm bg-red-50 border-red-200 text-red-700">Sila isi: {formErrors.join(', ')}</div>)}
+                                {pdfStatus === 'done' && <p className="text-xs text-center text-green-600">PDF dijana. Sila lampirkan dalam WhatsApp.</p>}
+                                {pdfStatus === 'error' && <p className="text-xs text-center text-red-600">Maaf, gagal menjana PDF. Cuba lagi.</p>}
+                            </form>
                         </div>
                     </div>
                 </div>
                 <NotesModal isOpen={isModalOpen} onClose={handleModalClose} />
             </>
+        );
+    };
+
+    const TempahanMajlisTab = () => {
+        const [orderItems, setOrderItems] = useState({});
+        const [customerDetails, setCustomerDetails] = useState({ name: '', phone: '', address: '', notes: '' });
+        const [deposit, setDeposit] = useState('');
+        const [eventDate, setEventDate] = useState('');
+        const [pdfStatus, setPdfStatus] = useState('idle');
+        const [quantityKey, setQuantityKey] = useState(0);
+
+        const totalAmount = useMemo(() => Object.values(orderItems).reduce((acc, item) => acc + item.price * item.quantity, 0), [orderItems]);
+        const parsedDeposit = useMemo(() => parseFloat(deposit) || 0, [deposit]);
+        const balance = useMemo(() => totalAmount - parsedDeposit, [totalAmount, parsedDeposit]);
+        const isFormValid = useMemo(() => (
+            Object.keys(orderItems).length > 0 &&
+            customerDetails.name.trim() !== '' &&
+            customerDetails.phone.trim() !== '' &&
+            customerDetails.address.trim() !== '' &&
+            eventDate !== '' &&
+            parsedDeposit > 0
+        ), [orderItems, customerDetails, eventDate, parsedDeposit]);
+        const formErrors = useMemo(() => {
+            const errors = [];
+            if (Object.keys(orderItems).length === 0) errors.push('Item (min 50 set)');
+            if (customerDetails.name.trim() === '') errors.push('Nama');
+            if (customerDetails.phone.trim() === '') errors.push('Telefon');
+            if (customerDetails.address.trim() === '') errors.push('Alamat Majlis');
+            if (eventDate === '') errors.push('Tarikh Majlis');
+            if (parsedDeposit <= 0) errors.push('Amaun Deposit');
+            return errors;
+        }, [orderItems, customerDetails, eventDate, parsedDeposit]);
+
+        const getPriceForQuantity = (item, quantity) => {
+            if (quantity < 50) return item.tiers[0].price;
+            const tier = item.tiers.find(t => quantity >= t.minQty && quantity <= t.maxQty);
+            return tier ? tier.price : 0;
+        };
+
+        const handleQuantityChange = (item, change) => {
+            setQuantityKey(prev => prev + 1);
+            setOrderItems(prev => {
+                const existing = prev[item.name];
+                let newQuantity = (existing?.quantity || 0) + change;
+                if (newQuantity < 0) newQuantity = 0;
+                if (change > 0 && (existing?.quantity || 0) === 0) newQuantity = 50;
+
+                const newItems = { ...prev };
+                if (newQuantity >= 50) {
+                    const price = getPriceForQuantity(item, newQuantity);
+                    newItems[item.name] = { price, quantity: newQuantity, baseItem: item };
+                } else {
+                    delete newItems[item.name];
+                }
+                return newItems;
+            });
+        };
+
+        const handleInputChange = (e) => {
+            const { name, value } = e.target;
+            setCustomerDetails(prev => ({ ...prev, [name]: value }));
+        };
+
+        const handleCombinedAction = async (e) => {
+            e.preventDefault();
+            if (!isFormValid) return;
+
+            setPdfStatus('generating');
+            try {
+                await generateMajlisPdf(orderItems, customerDetails, totalAmount, deposit, eventDate);
+                setPdfStatus('done');
+                setTimeout(() => setPdfStatus('idle'), 4000);
+            } catch (error) {
+                setPdfStatus('error');
+                return;
+            }
+
+            let itemCounter = 1;
+            const orderList = Object.entries(orderItems)
+                .map(([name, { quantity, price }]) => `${itemCounter++}. ${name} (${quantity} set) — RM ${(price * quantity).toFixed(2)}`)
+                .join('\n');
+            const formattedDate = new Date(eventDate).toLocaleDateString('ms-MY', { day: '2-digit', month: 'long', year: 'numeric' });
+
+            const orderDetails = `
+*TEMPAHAN MAJLIS - GERAI CIK ANI*
+═══════════════════════════════════
+
+*MAKLUMAT PELANGGAN:*
+• Nama: ${customerDetails.name}
+• Telefon: ${customerDetails.phone}
+• Alamat Majlis: ${customerDetails.address}
+• Tarikh Majlis: ${formattedDate}
+
+*PESANAN:*
+${orderList}
+═══════════════════════════════════
+*RINGKASAN BAYARAN:*
+• Jumlah Penuh: RM ${totalAmount.toFixed(2)}
+• Deposit: RM ${parsedDeposit.toFixed(2)}
+• Baki Bayaran: RM ${balance.toFixed(2)}
+
+*NOTA TAMBAHAN:*
+${customerDetails.notes || 'Tiada'}
+
+Terima kasih atas tempahan anda! Sila tunggu maklum balas daripada kami untuk pengesahan.`.trim().replace(/\n/g, '%0A');
+
+            window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${orderDetails}`, '_blank');
+        };
+        
+        const OrderSummary = () => (
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold text-purple-800 mb-4">Ringkasan Tempahan Majlis</h2>
+            {/* Item List */}
+            <div className="mb-4 min-h-[6rem]">
+              {Object.keys(orderItems).length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Pilih item untuk bermula</p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.entries(orderItems).map(([name, { quantity, price }]) => (
+                    <div key={name} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <div>
+                        <span className="font-medium text-gray-800">{name}</span>
+                        <span className="text-sm text-gray-500"> x{quantity}</span>
+                      </div>
+                      <span className="font-semibold text-gray-700">RM {(price * quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Financial Summary */}
+            <div className="border-t-2 border-gray-200 pt-4 space-y-3">
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Jumlah Penuh:</span>
+                <span className="font-semibold">RM {totalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-600">
+                <span>Deposit:</span>
+                <span className="font-semibold">RM {parsedDeposit.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-3 mt-2 border-t border-dashed border-gray-300">
+                <span className="text-xl font-bold text-purple-800">Baki Bayaran:</span>
+                <span className="text-2xl font-bold text-purple-800">RM {balance.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        );
+
+        return (
+            <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <h2 className="text-2xl font-bold text-purple-800 mb-4">Menu Majlis</h2>
+                    <p className="text-sm text-gray-500 mb-4">Minimum tempahan adalah 50 set.</p>
+                    <div className="space-y-4">
+                        {MAJLIS_MENU_ITEMS.map(item => (
+                            <div key={item.name} className="p-4 border rounded-lg">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h3 className="font-bold text-gray-800">{item.name}</h3>
+                                    <p className="text-xs text-pink-600 font-semibold">{item.freebie}</p>
+                                    <div className="text-xs text-gray-500 mt-2">
+                                      {item.tiers.map(t => (
+                                        <p key={t.minQty}>
+                                          {t.minQty}-{t.maxQty < 1000 ? t.maxQty : 'ke atas'} set: RM{t.price.toFixed(2)}/set
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center mt-2">
+                                      <button type="button" onClick={() => handleQuantityChange(item, -5)} className="decrease-btn bg-red-500 text-white w-7 h-7 rounded-full hover:bg-red-600 flex items-center justify-center">-</button>
+                                      <span key={quantityKey + item.name} className={`quantity-display w-12 text-center font-bold ${orderItems[item.name]?.quantity > 0 ? 'quantity-pop' : ''}`}>{orderItems[item.name]?.quantity || 0}</span>
+                                      <button type="button" onClick={() => handleQuantityChange(item, 5)} className="increase-btn bg-green-500 text-white w-7 h-7 rounded-full hover:bg-green-600 flex items-center justify-center">+</button>
+                                  </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-6">
+                    <OrderSummary />
+                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 className="text-2xl font-bold text-purple-800 mb-4">Maklumat Majlis</h2>
+                        <form className="space-y-4" onSubmit={handleCombinedAction} noValidate>
+                            <input type="text" name="name" required value={customerDetails.name} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nama Penuh *" />
+                            <input type="tel" name="phone" required value={customerDetails.phone} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nombor Telefon *" />
+                            <textarea name="address" rows={3} required value={customerDetails.address} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Alamat Penuh Majlis *"></textarea>
+                            <div className="grid grid-cols-2 gap-4">
+                               <input type="date" name="eventDate" required value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Tarikh Majlis *" />
+                               <input type="number" name="deposit" required value={deposit} onChange={e => setDeposit(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Deposit (RM) *" min="0" step="10" />
+                            </div>
+                            <textarea name="notes" rows={2} value={customerDetails.notes} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Nota Tambahan (Pilihan)"></textarea>
+                            <button type="submit" disabled={!isFormValid || pdfStatus === 'generating'} className={`w-full text-white font-bold py-4 px-8 rounded-lg shadow-lg transition duration-300 text-lg ${isFormValid ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-105' : 'bg-gray-400 cursor-not-allowed'}`}>
+                                {pdfStatus === 'generating' ? 'Memproses...' : '🚀 Hantar & Jana Sebut Harga'}
+                            </button>
+                            <p className="text-xs text-center text-gray-500 !-mt-1">Aksi ini akan memuat turun sebut harga PDF, kemudian membuka WhatsApp. Sila lampirkan PDF itu secara manual.</p>
+                            {!isFormValid && formErrors.length > 0 && (<div className="mt-3 p-3 rounded-lg border text-sm bg-red-50 border-red-200 text-red-700">Sila isi: {formErrors.join(', ')}</div>)}
+                            {pdfStatus === 'done' && <p className="text-xs text-center text-green-600">PDF dijana. Sila lampirkan dalam WhatsApp.</p>}
+                            {pdfStatus === 'error' && <p className="text-xs text-center text-red-600">Maaf, gagal menjana PDF. Cuba lagi.</p>}
+                        </form>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const BookingPage = () => {
+        const [activeTab, setActiveTab] = useState('biasa'); // 'biasa' or 'majlis'
+
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-purple-800 mb-4">Buat Tempahan</h1>
+                    <p className="text-xl text-gray-600">Pilih jenis tempahan di bawah</p>
+                </div>
+
+                <div className="max-w-md mx-auto mb-8 p-1 bg-purple-100 rounded-lg flex justify-around">
+                    <button
+                        onClick={() => setActiveTab('biasa')}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-all duration-300 ${activeTab === 'biasa' ? 'bg-white text-purple-700 shadow' : 'text-gray-600 hover:bg-purple-50'}`}
+                    >
+                        🛍️ Pesanan Biasa
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('majlis')}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-all duration-300 ${activeTab === 'majlis' ? 'bg-white text-purple-700 shadow' : 'text-gray-600 hover:bg-purple-50'}`}
+                    >
+                        🎉 Tempahan Majlis
+                    </button>
+                </div>
+
+                {activeTab === 'biasa' && <PesananBiasaTab />}
+                {activeTab === 'majlis' && <TempahanMajlisTab />}
+            </div>
         );
     };
 
